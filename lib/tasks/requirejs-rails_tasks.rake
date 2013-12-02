@@ -102,7 +102,9 @@ EOM
         if asset = requirejs.env.find_asset(logical_path)
           filename = requirejs.config.source_dir + asset.logical_path
           filename.dirname.mkpath
-          asset.write_to(filename)
+          File.open filename, 'w+' do |file|
+            file.write(asset.body)
+          end
         end
       end
     end
