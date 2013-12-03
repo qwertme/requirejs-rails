@@ -53,6 +53,7 @@ namespace :requirejs do
 
     # Preserve the original asset paths, as we'll be manipulating them later
     requirejs.env_paths = requirejs.env.paths.dup
+    requirejs.env_config = Rails.application.config
     requirejs.config = Rails.application.config.requirejs
     requirejs.builder = Requirejs::Rails::Builder.new(requirejs.config)
     requirejs.manifest = {}
@@ -129,18 +130,20 @@ EOM
       requirejs.config.build_config['modules'].each do |m|
         asset_name = "#{requirejs.config.module_name_for(m)}.js"
         built_asset_path = requirejs.config.target_dir + asset_name
-        digest_name = asset_name.sub(/\.(\w+)$/) { |ext| "-#{requirejs.builder.digest_for(built_asset_path)}#{ext}" }
-        digest_asset_path = requirejs.config.target_dir + digest_name
-        requirejs.manifest[asset_name] = digest_name
-        FileUtils.cp built_asset_path, digest_asset_path
-
         # Create the compressed versions
         File.open("#{built_asset_path}.gz",'wb') do |f|
           zgw = Zlib::GzipWriter.new(f, Zlib::BEST_COMPRESSION)
           zgw.write built_asset_path.read
           zgw.close
         end
-        FileUtils.cp "#{built_asset_path}.gz", "#{digest_asset_path}.gz"
+
+        if requirejs.env_config.assets.digest == true
+          digest_name = asset_name.sub(/\.(\w+)$/) { |ext| "-#{requirejs.builder.digest_for(built_asset_path)}#{ext}" }
+          digest_asset_path = requirejs.config.target_dir + digest_name
+          requirejs.manifest[asset_name] = digest_name
+          FileUtils.cp built_asset_path, digest_asset_path
+          FileUtils.cp "#{built_asset_path}.gz", "#{digest_asset_path}.gz"
+        end
 
         requirejs.config.manifest_path.open('wb') do |f|
           YAML.dump(requirejs.manifest,f)
